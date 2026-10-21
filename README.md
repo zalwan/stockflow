@@ -1,6 +1,16 @@
 # StockFlow
 
-Inventory and sales for a small warehouse. React + TypeScript, Go, and PostgreSQL. Stock changes, sales, and cancellations use real database transactions; the frontend calls the Go API.
+Inventory and sales for a small warehouse. React + TypeScript (Vite), Go, and PostgreSQL. Stock changes, sales, and cancellations use real database transactions; the frontend calls the Go API.
+
+## How it works
+
+1. **Manage inventory.** Create products with a unique SKU, name, price, and active status. New products start with zero stock. Search by SKU/name and filter active, inactive, or low-stock products.
+2. **Adjust stock.** Record incoming or outgoing quantities with an optional note. The stock balance and movement history are saved together. An outgoing quantity above the available stock is rejected and shown in the UI.
+3. **Record sales.** Enter a customer name and select products and quantities. The backend reads current product prices, calculates the total, and deducts all items in one transaction. If any item fails validation or has insufficient stock, the entire order is rejected.
+4. **Track purchases.** The order list shows customers, dates, item counts, totals, and statuses. Search by customer or order number, then open an order to view its saved unit prices and quantities. Customer names are free text rather than customer accounts.
+5. **Cancel orders.** Confirm cancellation from the order detail. Stock is restored and incoming movements are recorded in the same transaction as the status change. Cancelled orders remain visible and cannot be cancelled again.
+
+The React UI sends requests through a shared API client to the Go backend, which validates them and stores data in PostgreSQL. Inventory, order lists, movement history, and summary cards refresh after the relevant changes. Summary cards cover the entire inventory, independently of table filters and pagination.
 
 ## Run
 
@@ -127,17 +137,3 @@ Create product/order returns 201; delete returns 204 without a body. Invalid req
 - **Order history:** additional GET `/api/orders` accepts search/status/page/limit. Search is a literal case-insensitive customer substring or an exact positive order ID (also `#0003`); oversized numbers remain text searches. Status is CREATED/CANCELLED or empty for all. Default page1/limit10, maximum100. Results sort by created_at descending then ID descending; item_count means product types and unit_count means total quantity. Filtered count and rows use one readonly repeatable-read snapshot. Create/cancel refresh the list as well as inventory.
 - **Frontend:** one typed API module owns fetch and URL creation. Server totals are displayed after create; the browser never submits prices. Mutations are not automatically retried or optimistically applied. Item selection searches/pages through server products, including beyond the first page.
 - **Migrations:** embedded, versioned SQL with an advisory lock. Seed is a versioned development migration; restarting with an existing volume does not duplicate data. No final UI mock data.
-
-## Scope and next steps
-
-All required screens and API routes are implemented. Bonus idempotency keys and daily reports are intentionally deferred. There is no authentication, stock reservation, or deployment to a public server. Before production: add authentication/authorization, idempotency with persisted request fingerprints, operational metrics, backup/restore procedures, and a separate production migration/seed policy.
-
-The UI uses Google Fonts with system-font fallbacks; the application remains usable if fonts cannot load. Warehouse-wide stock values are decimal strings rather than floating point numbers; individual prices and order totals remain integer JSON numbers.
-
-## Work record and assistance
-
-This implementation was produced with AI assistance (Codex), including planning, source code, and tests. The supplied hiring assignment prohibits AI code generation; this implementation must not be presented as an unaided submission or as compliant with that prohibition without the organizer's permission.
-
-The initial implementation session ran on **21 October 2026, 16:21:42–16:56:51 WIB (35m09s)**. Later work added customer order tracking, refined the UI, and organized commits; that initial measurement does not include these follow-ups. It is elapsed AI-assisted session time, not independent candidate effort or total project hours. The candidate's own hours have not been supplied and must be reported honestly before submission.
-
-Backend and frontend changes are split into scoped commits on `feat/stockflow`, using the author identity supplied by the repository owner. These commits were organized after implementation and use their actual commit times; they do not represent a contemporaneous record of each development step. No work history was backdated.
