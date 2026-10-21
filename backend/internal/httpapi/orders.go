@@ -66,3 +66,8 @@ func (a *api) listOrders(w http.ResponseWriter, r *http.Request) {
 	result, err := a.orders.List(r.Context(), orders.ListParams{Search: query.Get("search"), Status: query.Get("status"), Page: page, Limit: limit})
 	respond(w, 200, result, err)
 }
+
+func (a *api) dailySales(w http.ResponseWriter, r *http.Request) {
+	report, err := a.orders.DailySales(r.Context(), r.URL.Query().Get("date"))
+	respond(w, 200, report, err)
+}

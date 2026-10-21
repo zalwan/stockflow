@@ -2,16 +2,18 @@ package httpapi
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"stockflow/internal/inventory"
 	"stockflow/internal/orders"
 	"stockflow/internal/testutil"
 )
 
-func TestIdempotencyHTTP(t *testing.T) {
+func TestIdempotencyAndDailySalesHTTP(t *testing.T) {
 	pool := testutil.Database(t)
 	router := NewRouter(inventory.New(pool), orders.New(pool))
 	call := func(method, path, body string, key []string, want int) map[string]json.RawMessage {
@@ -52,5 +54,19 @@ func TestIdempotencyHTTP(t *testing.T) {
 	}
 	for _, key := range [][]string{{""}, {"bad key"}, {strings.Repeat("a", 129)}, {"one", "two"}} {
 		call("POST", "/api/orders", body, key, 400)
+	}
+	date := time.Now().In(time.FixedZone("WIB", 7*60*60)).Format("2006-01-02")
+	path := "/api/reports/daily-sales?date=" + date
+	report := call(http.MethodGet, path, "", nil, 200)
+	if string(report["total_sales"]) != `"20000"` || string(report["order_count"]) != "1" || string(report["units_sold"]) != "2" || string(report["time_zone"]) != `"Asia/Jakarta"` {
+		t.Fatalf("wrong report %v", report)
+	}
+	call("POST", "/api/orders/1/cancel", "", nil, 200)
+	report = call(http.MethodGet, path, "", nil, 200)
+	if string(report["total_sales"]) != `"0"` || string(report["order_count"]) != "0" {
+		t.Fatal("cancelled order still in sales")
+	}
+	for _, path := range []string{"/api/reports/daily-sales", "/api/reports/daily-sales?date=2026-02-30"} {
+		call("GET", path, "", nil, 400)
 	}
 }

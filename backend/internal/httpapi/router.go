@@ -34,11 +34,12 @@ func NewRouter(inv *inventory.Service, ord *orders.Service) http.Handler {
 	mux.HandleFunc("DELETE /api/products/{id}", a.deleteProduct)
 	mux.HandleFunc("POST /api/products/{id}/stock", a.adjustStock)
 	mux.HandleFunc("GET /api/products/{id}/movements", a.movements)
+	mux.HandleFunc("GET /api/reports/daily-sales", a.dailySales)
 	mux.HandleFunc("GET /api/orders", a.listOrders)
 	mux.HandleFunc("POST /api/orders", a.createOrder)
 	mux.HandleFunc("GET /api/orders/{id}", a.getOrder)
 	mux.HandleFunc("POST /api/orders/{id}/cancel", a.cancelOrder)
-	for _, path := range []string{"/api/products", "/api/products/{id}", "/api/products/{id}/stock", "/api/products/{id}/movements", "/api/orders", "/api/orders/{id}", "/api/orders/{id}/cancel"} {
+	for _, path := range []string{"/api/reports/daily-sales", "/api/products", "/api/products/{id}", "/api/products/{id}/stock", "/api/products/{id}/movements", "/api/orders", "/api/orders/{id}", "/api/orders/{id}/cancel"} {
 		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 			writeError(w, apperror.New(405, "METHOD_NOT_ALLOWED", "Metode HTTP tidak didukung."))
 		})
