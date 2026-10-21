@@ -93,3 +93,11 @@ export interface OrderListParams {
   page: number;
   limit: number;
 }
+
+export interface DailySales {
+  date: string;
+  time_zone: "Asia/Jakarta";
+  order_count: number;
+  units_sold: number;
+  total_sales: string;
+}

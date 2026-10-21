@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { OrderListParams } from "../../api/types";
 import { Icon } from "../../components/Icon";
@@ -13,7 +14,7 @@ const filters = [
   ["CREATED", "Dibuat"],
   ["CANCELLED", "Dibatalkan"],
 ] as const;
-export function OrdersPage() {
+export function OrdersPage({ summary }: { summary?: ReactNode }) {
   const [params, setParams] = useState<OrderListParams>({
     search: "",
     status: "",
@@ -44,6 +45,7 @@ export function OrdersPage() {
           Buat order
         </Link>
       </div>
+      {summary}
       <section className="panel orders-panel">
         <div className="panel-title">
           <div>

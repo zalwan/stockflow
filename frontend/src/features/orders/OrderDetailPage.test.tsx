@@ -10,6 +10,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { DailySalesPanel } from "../reports/DailySalesPanel";
 import { OrdersPage } from "./OrdersPage";
 import { OrderDetailPage } from "./OrderDetailPage";
 import {
@@ -32,6 +33,14 @@ it("refreshes the visible order list after cancellation without reloading", asyn
       if (path.endsWith("/cancel")) cancelled = true;
       const status = cancelled ? "CANCELLED" : "CREATED";
       const cancelled_at = cancelled ? "2026-10-21T10:00:00Z" : null;
+      if (path === "/api/reports/daily-sales")
+        return jsonResponse({
+          date: "2026-10-21",
+          time_zone: "Asia/Jakarta",
+          order_count: cancelled ? 0 : 1,
+          units_sold: cancelled ? 0 : 4,
+          total_sales: cancelled ? "0" : "194000",
+        });
       if (path === "/api/orders")
         return jsonResponse({
           data: [{ ...sampleOrderRow, status, cancelled_at }],
@@ -58,6 +67,7 @@ it("refreshes the visible order list after cancellation without reloading", asyn
             path="/orders/:id"
             element={
               <>
+                <DailySalesPanel />
                 <OrdersPage />
                 <OrderDetailPage />
               </>
@@ -71,6 +81,11 @@ it("refreshes the visible order list after cancellation without reloading", asyn
     name: /PT Ruang Kerja Nusantara/,
   });
   expect(within(row).getByText("Dibuat")).toBeTruthy();
+  expect(
+    await within(
+      screen.getByRole("region", { name: "Penjualan harian" }),
+    ).findByText("Rp 194.000"),
+  ).toBeTruthy();
   const user = userEvent.setup();
   await user.click(
     await screen.findByRole("button", { name: "Batalkan order" }),
@@ -84,4 +99,9 @@ it("refreshes the visible order list after cancellation without reloading", asyn
     ).toBeTruthy(),
   );
   expect(screen.queryByRole("dialog")).toBeNull();
+  expect(
+    await within(
+      screen.getByRole("region", { name: "Penjualan harian" }),
+    ).findByText("Rp 0"),
+  ).toBeTruthy();
 });

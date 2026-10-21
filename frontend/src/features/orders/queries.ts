@@ -17,5 +17,9 @@ export function useOrders(params: OrderListParams) {
   });
 }
 export async function refreshOrders(client: QueryClient) {
-  await client.invalidateQueries({ queryKey: ["orders"] });
+  await Promise.all(
+    ["orders", "daily-sales"].map((key) =>
+      client.invalidateQueries({ queryKey: [key] }),
+    ),
+  );
 }

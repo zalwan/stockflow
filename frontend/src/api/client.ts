@@ -11,6 +11,7 @@ import type {
   ErrorBody,
   OrderListParams,
   OrderPage,
+  DailySales,
 } from "./types";
 export class ApiError extends Error {
   status: number;
@@ -126,6 +127,10 @@ export const api = {
       "POST",
       input,
       key ? { "Idempotency-Key": key } : undefined,
+    ),
+  dailySales: (date: string) =>
+    request<DailySales>(
+      `/reports/daily-sales?${new URLSearchParams({ date })}`,
     ),
   getOrder: (id: number) => request<Order>(`/orders/${id}`),
   cancelOrder: (id: number) => request<Order>(`/orders/${id}/cancel`, "POST"),

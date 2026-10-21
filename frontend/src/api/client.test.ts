@@ -109,3 +109,24 @@ it("sends the purchase idempotency key without putting it in the body", async ()
   expect(headers?.get("Idempotency-Key")).toBe("checkout-123");
   expect(body).toEqual({ customer: "C", items: [{ sku: "A", qty: 1 }] });
 });
+it("requests the selected date from the daily sales API", async () => {
+  let requested = "";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      requested = String(input);
+      return new Response(
+        JSON.stringify({
+          date: "2026-10-21",
+          time_zone: "Asia/Jakarta",
+          order_count: 1,
+          units_sold: 2,
+          total_sales: "20000",
+        }),
+      );
+    }),
+  );
+  const report = await api.dailySales("2026-10-21");
+  expect(requested).toBe("/api/reports/daily-sales?date=2026-10-21");
+  expect(report.total_sales).toBe("20000");
+});
