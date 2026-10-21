@@ -14,7 +14,16 @@ func (a *api) createOrder(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	o, err := a.orders.Create(r.Context(), in)
+	keys := r.Header.Values("Idempotency-Key")
+	key := ""
+	if len(keys) > 0 {
+		if len(keys) != 1 || keys[0] == "" {
+			writeError(w, apperror.Invalid("Gunakan satu Idempotency-Key yang tidak kosong."))
+			return
+		}
+		key = keys[0]
+	}
+	o, err := a.orders.CreateWithKey(r.Context(), in, key)
 	respond(w, 201, o, err)
 }
 func (a *api) getOrder(w http.ResponseWriter, r *http.Request) {

@@ -16,6 +16,15 @@ type Service struct{ pool *pgxpool.Pool }
 
 func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
 func (s *Service) Create(ctx context.Context, in CreateInput) (Order, error) {
+	return s.CreateWithKey(ctx, in, "")
+}
+func (s *Service) CreateWithKey(ctx context.Context, in CreateInput, key string) (Order, error) {
+	if err := validateKey(key); err != nil {
+		return Order{}, err
+	}
+	// Do not mutate the caller's slice, which may be shared by concurrent retries.
+	in.Items = append([]ItemInput(nil), in.Items...)
+
 	in.Customer = strings.TrimSpace(in.Customer)
 	if in.Customer == "" || len(in.Customer) > 250 {
 		return Order{}, apperror.Invalid("Nama pelanggan wajib diisi, maksimal 250 karakter.")
@@ -42,6 +51,17 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Order, error) {
 		return Order{}, err
 	}
 	defer tx.Rollback(context.Background())
+	hash := ""
+	if key != "" {
+		hash = requestHash(in)
+		order, found, e := replayRequest(ctx, tx, key, hash)
+		if e != nil {
+			return Order{}, e
+		}
+		if found {
+			return order, tx.Commit(ctx)
+		}
+	}
 	products, err := lockProducts(ctx, tx, skus)
 	if err != nil {
 		return Order{}, err
@@ -83,6 +103,11 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Order, error) {
 	o, err := readOrder(ctx, tx, id, false)
 	if err != nil {
 		return o, err
+	}
+	if key != "" {
+		if err = saveRequest(ctx, tx, key, hash, o); err != nil {
+			return Order{}, err
+		}
 	}
 	return o, tx.Commit(ctx)
 }
