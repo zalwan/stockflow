@@ -8,6 +8,8 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout } from "./components/AppLayout";
 import { ProductsPage } from "./features/products/ProductsPage";
+import { CreateOrderPage } from "./features/orders/CreateOrderPage";
+import { OrderDetailPage } from "./features/orders/OrderDetailPage";
 const client = new QueryClient({
   defaultOptions: {
     queries: { retry: false, staleTime: 15000, refetchOnWindowFocus: true },
@@ -22,6 +24,8 @@ function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/products" replace />} />
             <Route path="/products" element={<ProductsPage />} />
+            <Route path="/orders/new" element={<CreateOrderPage />} />
+            <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route
               path="*"
               element={
