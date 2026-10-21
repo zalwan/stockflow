@@ -34,6 +34,7 @@ func NewRouter(inv *inventory.Service, ord *orders.Service) http.Handler {
 	mux.HandleFunc("DELETE /api/products/{id}", a.deleteProduct)
 	mux.HandleFunc("POST /api/products/{id}/stock", a.adjustStock)
 	mux.HandleFunc("GET /api/products/{id}/movements", a.movements)
+	mux.HandleFunc("GET /api/orders", a.listOrders)
 	mux.HandleFunc("POST /api/orders", a.createOrder)
 	mux.HandleFunc("GET /api/orders/{id}", a.getOrder)
 	mux.HandleFunc("POST /api/orders/{id}/cancel", a.cancelOrder)
