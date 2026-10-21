@@ -1,0 +1,41 @@
+import {
+  BrowserRouter,
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+} from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AppLayout } from "./components/AppLayout";
+const client = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false, staleTime: 15000, refetchOnWindowFocus: true },
+    mutations: { retry: false },
+  },
+});
+function App() {
+  return (
+    <QueryClientProvider client={client}>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<Navigate to="/products" replace />} />
+            <Route path="/products" element={<h1>Inventori</h1>} />
+            <Route
+              path="*"
+              element={
+                <div className="empty">
+                  <h1>Halaman tidak ditemukan</h1>
+                  <NavLink className="button" to="/products">
+                    Kembali ke inventori
+                  </NavLink>
+                </div>
+              }
+            />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+}
+export default App;
