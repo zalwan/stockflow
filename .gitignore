@@ -1,0 +1,8 @@
+/.superpowers/
+/docs/
+/software-engineer-fullstack.pdf.pdf
+/frontend/node_modules/
+/frontend/dist/
+/.env
+/backend/bin/
+*.log
