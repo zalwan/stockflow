@@ -6,3 +6,4 @@
 /.env
 /backend/bin/
 *.log
+/VERIFICATION.md
