@@ -1,0 +1,18 @@
+{
+  // Format files on save when a formatter is available.
+  "editor.formatOnSave": true,
+  // goimports formats Go code and organizes imports.
+  "go.formatTool": "goimports",
+  "[go]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true
+    }
+  },
+  "[go.mod]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true
+    }
+  }
+}
