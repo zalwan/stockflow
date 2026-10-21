@@ -69,7 +69,7 @@ func TestOrderListPaginationAndSearch(t *testing.T) {
 			t.Fatalf("search %q: %+v %v", search, p, err)
 		}
 	}
-	for _, search := range []string{"nobody", "#99999999999999999999999999"} {
+	for _, search := range []string{"nobody", "#2147483648", "999999999999999999", "#99999999999999999999999999"} {
 		p, err := s.List(ctx, ListParams{Page: 1, Limit: 10, Search: search})
 		if err != nil || p.Total != 0 || p.Data == nil || len(p.Data) != 0 {
 			t.Fatalf("empty search %q: %+v %v", search, p, err)

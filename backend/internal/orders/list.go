@@ -33,7 +33,7 @@ func (s *Service) List(ctx context.Context, params ListParams) (OrderPage, error
 		}
 	}
 	if digits {
-		if parsed, err := strconv.ParseInt(candidate, 10, 64); err == nil && parsed > 0 {
+		if parsed, err := strconv.ParseInt(candidate, 10, 64); err == nil && parsed > 0 && parsed <= inventory.MaxInt {
 			orderID = parsed
 		}
 	}
