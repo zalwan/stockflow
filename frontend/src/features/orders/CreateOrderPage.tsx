@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../../api/client";
+import { ApiError, api } from "../../api/client";
 import { Icon } from "../../components/Icon";
 import { refreshOrders } from "./queries";
 import { ErrorMessage, Loading } from "../../components/Feedback";
@@ -9,6 +9,13 @@ import { useDebounce } from "../../lib/useDebounce";
 import { useProducts, refreshInventory } from "../products/queries";
 import { itemError, orderErrors, orderPayload } from "./validation";
 import type { DraftItem } from "./validation";
+import type { CreateOrderInput } from "../../api/types";
+import {
+  readOrderAttempt,
+  saveOrderAttempt,
+  clearOrderAttempt,
+} from "./orderAttempt";
+import type { OrderAttempt } from "./orderAttempt";
 function ProductPicker({
   sku,
   index,
@@ -89,22 +96,51 @@ function ProductPicker({
   );
 }
 export function CreateOrderPage() {
-  const [customer, setCustomer] = useState("");
-  const [items, setItems] = useState<(DraftItem & { key: number })[]>([
-    { key: 1, sku: "", qty: "1" },
-  ]);
-  const [nextKey, setNextKey] = useState(2);
+  const [attempt, setAttempt] = useState<OrderAttempt | null>(readOrderAttempt);
+  const [customer, setCustomer] = useState(attempt?.input.customer ?? "");
+  const [items, setItems] = useState<(DraftItem & { key: number })[]>(() =>
+    attempt
+      ? attempt.input.items.map((item, i) => ({
+          key: i + 1,
+          sku: item.sku,
+          qty: String(item.qty),
+        }))
+      : [{ key: 1, sku: "", qty: "1" }],
+  );
+  const [nextKey, setNextKey] = useState(items.length + 1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const client = useQueryClient();
   const create = useMutation({
-    mutationFn: () => api.createOrder(orderPayload(customer, items)),
+    mutationFn: async (input: CreateOrderInput) => {
+      const current = attempt ?? { key: crypto.randomUUID(), input };
+      saveOrderAttempt(current);
+      setAttempt(current);
+      return api.createOrder(current.input, current.key);
+    },
+    onError: (error) => {
+      // Only a readable 4xx response definitively rejects this purchase.
+      if (
+        error instanceof ApiError &&
+        error.status >= 400 &&
+        error.status < 500 &&
+        error.code !== "INVALID_RESPONSE"
+      ) {
+        clearOrderAttempt();
+        setAttempt(null);
+      }
+    },
     onSuccess: async (order) => {
+      clearOrderAttempt();
+      setAttempt(null);
       client.setQueryData(["order", order.id], order);
+      // A replay returns the original creation response, so refresh its current status.
+      await client.invalidateQueries({ queryKey: ["order", order.id] });
       await Promise.all([refreshInventory(client), refreshOrders(client)]);
       void navigate(`/orders/${order.id}`);
     },
   });
+  const locked = create.isPending || attempt !== null;
   const change = (index: number, patch: Partial<DraftItem>) => {
     setItems((previous) =>
       previous.map((item, i) => (i === index ? { ...item, ...patch } : item)),
@@ -123,6 +159,13 @@ export function CreateOrderPage() {
           <p>Catat penjualan dan perbarui stok dalam satu langkah.</p>
         </div>
       </div>
+      {attempt && !create.isPending && (
+        <div className="feedback" role="status">
+          Hasil penyimpanan order belum terkonfirmasi. Coba simpan lagi untuk
+          memeriksa transaksi yang sama tanpa membuat order ganda. Data order
+          dikunci sampai hasilnya diterima.
+        </div>
+      )}
       <div className="order-layout">
         <form
           className="panel order-form"
@@ -131,7 +174,8 @@ export function CreateOrderPage() {
             e.preventDefault();
             const next = orderErrors(customer, items);
             setErrors(next);
-            if (!Object.keys(next).length) create.mutate();
+            if (!Object.keys(next).length)
+              create.mutate(attempt?.input ?? orderPayload(customer, items));
           }}
         >
           <div className="section-label">
@@ -148,7 +192,7 @@ export function CreateOrderPage() {
                 setCustomer(e.target.value);
                 create.reset();
               }}
-              disabled={create.isPending}
+              disabled={locked}
             />
             {errors.customer && (
               <span className="field-error">{errors.customer}</span>
@@ -172,7 +216,7 @@ export function CreateOrderPage() {
                     <button
                       type="button"
                       className="text-button danger-text"
-                      disabled={create.isPending || items.length === 1}
+                      disabled={locked || items.length === 1}
                       onClick={() => {
                         setItems((previous) =>
                           previous.filter((_, index) => index !== i),
@@ -190,7 +234,7 @@ export function CreateOrderPage() {
                         sku={item.sku}
                         index={i}
                         onChange={(sku) => change(i, { sku })}
-                        disabled={create.isPending}
+                        disabled={locked}
                       />
                     </div>
                     <label>
@@ -200,7 +244,7 @@ export function CreateOrderPage() {
                         inputMode="numeric"
                         value={item.qty}
                         onChange={(e) => change(i, { qty: e.target.value })}
-                        disabled={create.isPending}
+                        disabled={locked}
                       />
                     </label>
                   </div>
@@ -221,7 +265,7 @@ export function CreateOrderPage() {
           <button
             type="button"
             className="button add-item"
-            disabled={create.isPending || items.length >= 100}
+            disabled={locked || items.length >= 100}
             onClick={() => {
               setItems((previous) => [
                 ...previous,
@@ -239,7 +283,11 @@ export function CreateOrderPage() {
               Kembali
             </Link>
             <button className="button primary" disabled={create.isPending}>
-              {create.isPending ? "Menyimpan order…" : "Buat order"}
+              {create.isPending
+                ? "Menyimpan order…"
+                : attempt
+                  ? "Coba simpan lagi"
+                  : "Buat order"}
             </button>
           </footer>
         </form>

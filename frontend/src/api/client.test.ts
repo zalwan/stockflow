@@ -91,3 +91,21 @@ it("encodes order number search and sends pagination/status filters", async () =
   expect(url.searchParams.get("page")).toBe("2");
   expect(url.searchParams.get("limit")).toBe("10");
 });
+it("sends the purchase idempotency key without putting it in the body", async () => {
+  let headers: Headers | undefined;
+  let body: unknown;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      headers = new Headers(init?.headers);
+      body = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify({ id: 1 }), { status: 201 });
+    }),
+  );
+  await api.createOrder(
+    { customer: "C", items: [{ sku: "A", qty: 1 }] },
+    "checkout-123",
+  );
+  expect(headers?.get("Idempotency-Key")).toBe("checkout-123");
+  expect(body).toEqual({ customer: "C", items: [{ sku: "A", qty: 1 }] });
+});

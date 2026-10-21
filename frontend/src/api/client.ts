@@ -62,13 +62,16 @@ async function request<T>(
   path: string,
   method = "GET",
   body?: unknown,
+  headers?: Record<string, string>,
 ): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
       method,
-      headers:
-        body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: {
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...headers,
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -117,8 +120,13 @@ export const api = {
     request<Product>(`/products/${id}/stock`, "POST", input),
   movements: (id: number) =>
     request<{ data: Movement[] }>(`/products/${id}/movements`),
-  createOrder: (input: CreateOrderInput) =>
-    request<Order>("/orders", "POST", input),
+  createOrder: (input: CreateOrderInput, key?: string) =>
+    request<Order>(
+      "/orders",
+      "POST",
+      input,
+      key ? { "Idempotency-Key": key } : undefined,
+    ),
   getOrder: (id: number) => request<Order>(`/orders/${id}`),
   cancelOrder: (id: number) => request<Order>(`/orders/${id}/cancel`, "POST"),
 };
