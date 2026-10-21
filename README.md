@@ -8,7 +8,8 @@ Inventory and sales for a small warehouse. React + TypeScript (Vite), Go, and Po
 2. **Adjust stock.** Record incoming or outgoing quantities with an optional note. The stock balance and movement history are saved together. An outgoing quantity above the available stock is rejected and shown in the UI.
 3. **Record sales.** Enter a customer name and select products and quantities. The backend reads current product prices, calculates the total, and deducts all items in one transaction. If any item fails validation or has insufficient stock, the entire order is rejected.
 4. **Track purchases.** The order list shows customers, dates, item counts, totals, and statuses. Search by customer or order number, then open an order to view its saved unit prices and quantities. Customer names are free text rather than customer accounts.
-5. **Cancel orders.** Confirm cancellation from the order detail. Stock is restored and incoming movements are recorded in the same transaction as the status change. Cancelled orders remain visible and cannot be cancelled again.
+5. **Review daily sales.** On the order page, select a date to see revenue, order count, and units sold for that WIB calendar day. Cancelled orders are excluded.
+6. **Cancel orders.** Confirm cancellation from the order detail. Stock is restored and incoming movements are recorded in the same transaction as the status change. Cancelled orders remain visible and cannot be cancelled again.
 
 The React UI sends requests through a shared API client to the Go backend, which validates them and stores data in PostgreSQL. Inventory, order lists, movement history, and summary cards refresh after the relevant changes. Summary cards cover the entire inventory, independently of table filters and pagination.
 
@@ -81,7 +82,7 @@ Backend tests require `TEST_DATABASE_URL`; they never fall back to the developme
 
 Tests cover adjustment rollback/success, all-or-nothing multi-item orders, invalid items, server prices, historical prices, overflow, 20 simultaneous orders against stock 10, reversed item ordering, concurrent/repeated cancellations, product deletion racing adjustment, filtering/pagination/global summary, and HTTP envelopes. `-race` checks Go memory races; the PostgreSQL concurrency assertions independently prove stock behavior.
 
-Frontend tests cover form validation, pagination reset, rupiah formatting, error-envelope parsing, visible insufficient-stock errors including available=0, order-list search/debounce, and list refresh after order creation/cancellation. The latest full check passed 15 backend tests with `-race` and 38 frontend tests, plus `go vet`, the production build, and lint.
+Frontend tests cover form validation, pagination reset, rupiah formatting, error-envelope parsing, visible insufficient-stock errors including available=0, order-list search/debounce, purchase recovery with the same key after a lost response/remount, WIB date selection, exact daily revenue, and report/list refresh after cancellation. The latest full check passed 21 backend tests with `-race` and 45 frontend tests, plus `go vet`, the production build, and lint.
 
 Manual checks: search a nonexistent term for empty state; reload for loading state; stop the API temporarily for error state, restart it, then use **Coba lagi**. Create a product, receive stock, place an order, cancel it, and return to inventory to verify restored stock and refreshed summary.
 
@@ -111,6 +112,7 @@ curl -i -X DELETE http://localhost:8080/api/products/1
 
 curl -X POST http://localhost:8080/api/orders \
   -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: example-order-001' \
   -d '{"customer":"Toko Contoh","items":[{"sku":"KRT-A4-80","qty":2}]}'
 
 curl 'http://localhost:8080/api/orders?search=ruang&status=CREATED&page=1&limit=10'
@@ -118,11 +120,23 @@ curl 'http://localhost:8080/api/orders?search=ruang&status=CREATED&page=1&limit=
 curl http://localhost:8080/api/orders/1
 curl -X POST http://localhost:8080/api/orders/1/cancel
 curl http://localhost:8080/api/products/summary
+
+curl 'http://localhost:8080/api/reports/daily-sales?date=2026-10-21'
 ```
 
 List responses are `{data,page,limit,total}`; movement responses are `{data}`. Errors use `{ "error": { "code": "...", "message": "..." } }`. Stock conflicts additionally include `available`, and order stock conflicts include `sku`. An available quantity of zero is always present in the JSON and UI.
 
 Create product/order returns 201; delete returns 204 without a body. Invalid requests return 400, missing resources 404, and conflicts 409. Cancellation returns the updated order with status 200; repeating cancellation returns 409. Unknown JSON fields, fractional integer fields, multiple JSON values, and bodies above 1 MiB are rejected.
+
+## Order retries and daily reports
+
+`POST /api/orders` accepts an optional `Idempotency-Key` header (1–128 visible ASCII characters, without spaces). Repeating a successful purchase with the same key and input returns its original creation response with status201, without creating another order or changing stock. Customer/SKU whitespace and item ordering are normalized for comparison. Reusing a key for different input returns409 with code `IDEMPOTENCY_KEY_REUSED`. Failed requests do not reserve the key; requests without a key create independent orders.
+
+Keys and successful responses are persisted with the order in one database transaction and retained without automatic expiry. Replaying after a price change or cancellation still returns the original creation response; use `GET /api/orders/{id}` for the current status.
+
+The create-order form stores a pending attempt in the browser's session storage before sending it. After a network or ambiguous server failure, its fields remain locked and **Coba simpan lagi** resends the same key and input. Reloading or reopening the form in the same tab restores the attempt. A definitive validation/stock rejection allows editing and starts a new attempt; a successful response clears the saved attempt. Keep the tab/session until an uncertain purchase is resolved.
+
+`GET /api/reports/daily-sales?date=YYYY-MM-DD` requires a valid date and uses the Asia/Jakarta calendar day (UTC+7). The response includes `date`, `time_zone`, `order_count`, `units_sold`, and `total_sales`. Revenue is an exact decimal string, just like inventory value. Only orders currently marked CREATED are included, grouped by their creation date; later cancellation also removes the sale from that original date's report. Empty days return zero counts and `"0"` revenue. The UI refreshes the report after order creation/cancellation and uses skeleton rows while inventory/order tables load.
 
 ## Decisions
 
