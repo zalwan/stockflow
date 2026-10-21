@@ -5,7 +5,8 @@ import { api } from "../../api/client";
 import type { Product } from "../../api/types";
 import { Icon } from "../../components/Icon";
 import { Dialog } from "../../components/Dialog";
-import { ErrorMessage, Loading } from "../../components/Feedback";
+import { TableSkeleton } from "../../components/TableSkeleton";
+import { ErrorMessage } from "../../components/Feedback";
 import { relativeTime, rupiah } from "../../lib/format";
 import { useDebounce } from "../../lib/useDebounce";
 import { useProducts, useSummary, refreshInventory } from "./queries";
@@ -185,7 +186,7 @@ export function ProductsPage() {
           </label>
         </div>
         {products.isPending ? (
-          <Loading label="Memuat persediaan…" />
+          <TableSkeleton label="Memuat persediaan…" columns={6} />
         ) : products.isError ? (
           <div className="panel-feedback">
             <ErrorMessage

@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { OrderListParams } from "../../api/types";
 import { Icon } from "../../components/Icon";
-import { ErrorMessage, Loading } from "../../components/Feedback";
+import { TableSkeleton } from "../../components/TableSkeleton";
+import { ErrorMessage } from "../../components/Feedback";
 import { dateTime, relativeTime, rupiah } from "../../lib/format";
 import { useDebounce } from "../../lib/useDebounce";
 import { useOrders } from "./queries";
@@ -98,7 +99,7 @@ export function OrdersPage({ summary }: { summary?: ReactNode }) {
           </label>
         </div>
         {q.isPending ? (
-          <Loading label="Memuat order…" />
+          <TableSkeleton label="Memuat order…" columns={7} />
         ) : q.isError ? (
           <div className="panel-feedback">
             <ErrorMessage error={q.error} retry={() => void q.refetch()} />
